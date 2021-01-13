@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: postscript
+  name: postscript-deployment
+  labels:
+    app: postscript
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: postscript
+  template:
+    metadata:
+      labels:
+        app: postscript
+    spec:
+      containers:
+        - name: postscript_app
+          image: "877045665938.dkr.ecr.us-east-2.amazonaws.com/ps:init"
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - mountPath: "/opt/src"
+              name: prod.env
+              readOnly: true
+      volumes:
+        - name: prod.env
+          secret:
+            secretName: env-file
