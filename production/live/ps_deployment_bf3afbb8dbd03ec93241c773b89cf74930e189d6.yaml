@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: postscript
+  name: postscript-deployment
+  labels:
+    app: postscript
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: postscript
+  template:
+    metadata:
+      labels:
+        app: postscript
+    spec:
+      # auto generate then run migrations
+      initContainers:
+        - name: run-database-migrations
+          image: 877045665938.dkr.ecr.us-east-2.amazonaws.com/ps:bf3afbb8dbd03ec93241c773b89cf74930e189d6
+          command: ["sh", "-c", "alembic revision --autogenerate; alembic upgrade head"]
+          env:
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: prod-db-connection-string
+                  key: SQLALCHEMY_DATABASE_URI
+            - name: ENV
+              value: "production"
+            - name: DEBUG
+              value: "false"
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: base-url
+                  key: BASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: prod-secret-key
+                  key: SECRET_KEY
+      containers:
+        - name: postscript-app
+          image: 877045665938.dkr.ecr.us-east-2.amazonaws.com/ps:bf3afbb8dbd03ec93241c773b89cf74930e189d6
+          # for testing
+          imagePullPolicy: Always
+          env:
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: prod-db-connection-string
+                  key: SQLALCHEMY_DATABASE_URI
+            - name: ENV
+              value: "production"
+            - name: DEBUG
+              value: "false"
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: base-url
+                  key: BASE_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: prod-secret-key
+                  key: SECRET_KEY
+          command: ["gunicorn"]
+          args: ["--reload", "--bind=0.0.0.0:8080", "wsgi:app"]
+          ports:
+            - containerPort: 8080
