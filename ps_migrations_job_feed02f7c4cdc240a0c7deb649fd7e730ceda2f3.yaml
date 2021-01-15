@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrations-feed02f7c4cdc240a0c7deb649fd7e730ceda2f3
+  namespace: migrations
+spec:
+  template:
+    spec:
+      volumes:
+        - name: ssh-volume
+          secret:
+            secretName: ssh-key-secret
+      containers:
+        - name: migrator
+          image: 877045665938.dkr.ecr.us-east-2.amazonaws.com/ps:feed02f7c4cdc240a0c7deb649fd7e730ceda2f3
+          volumeMounts:
+            - name: ssh-volume
+              readOnly: true
+              mountPath: "/opt/src/git_data"
+          imagePullPolicy: Always
+          env:
+            - name: SQLALCHEMY_DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: prod-db-connection-string
+                  key: SQLALCHEMY_DATABASE_URI
+            - name: ENV
+              value: "production"
+            # only for demo, do not use "StrictHostKeyChecking=no" in prod
+            - name: GIT_SSH_COMMAND
+              value: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /opt/src/git_data/ssh-privatekey"
+            - name: DEBUG
+              value: "false"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: prod-secret-key
+                  key: SECRET_KEY
+          command: ["./scripts/run-migrations.sh"]
+      restartPolicy: Never
+  backoffLimit: 4
